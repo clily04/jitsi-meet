@@ -151,12 +151,15 @@ class SettingsView extends AbstractSettingsView {
                         fieldSeparator = { true }
                         i18nLabel = 'settingsView.displayName'>
                         <TextInput
+                            autoCorrect = { false }
                             onChangeText = { this._onChangeDisplayName }
                             placeholder = 'John Doe'
                             value = { _profile.displayName } />
                     </FormRow>
                     <FormRow i18nLabel = 'settingsView.email'>
                         <TextInput
+                            autoCapitalize = 'none'
+                            autoCorrect = { false }
                             keyboardType = { 'email-address' }
                             onChangeText = { this._onChangeEmail }
                             placeholder = 'email@example.com'
@@ -169,6 +172,7 @@ class SettingsView extends AbstractSettingsView {
                         i18nLabel = 'settingsView.serverURL'>
                         <TextInput
                             autoCapitalize = 'none'
+                            autoCorrect = { false }
                             onBlur = { this._onBlurServerURL }
                             onChangeText = { this._onChangeServerURL }
                             placeholder = { this.props._serverURL }

@@ -43,7 +43,8 @@ import {
     lockStateChanged,
     onStartMutedPolicyChanged,
     p2pStatusChanged,
-    sendLocalParticipant
+    sendLocalParticipant,
+    setDesktopSharingEnabled
 } from './react/features/base/conference';
 import { updateDeviceList } from './react/features/base/devices';
 import {
@@ -104,6 +105,7 @@ import {
     mediaPermissionPromptVisibilityChanged,
     suspendDetected
 } from './react/features/overlay';
+import { setSharedVideoStatus } from './react/features/shared-video';
 import {
     isButtonEnabled,
     showDesktopSharingButton
@@ -234,13 +236,14 @@ function maybeRedirectToWelcomePage(options) {
         }));
     }
 
-    // if Welcome page is enabled redirect to welcome page after 3 sec.
+    // if Welcome page is enabled redirect to welcome page after 3 sec, if
+    // there is a thank you message to be shown, 0.5s otherwise.
     if (config.enableWelcomePage) {
         setTimeout(
             () => {
                 APP.store.dispatch(redirectWithStoredParams('/'));
             },
-            3000);
+            options.showThankYou ? 3000 : 500);
     }
 }
 
@@ -505,16 +508,6 @@ export default {
      */
     desktopSharingDisabledTooltip: null,
 
-    /*
-     * Whether the local "raisedHand" flag is on.
-     */
-    isHandRaised: false,
-
-    /*
-     * Whether the local participant is the dominant speaker in the conference.
-     */
-    isDominantSpeaker: false,
-
     /**
      * The local audio track (if any).
      * FIXME tracks from redux store should be the single source of truth
@@ -773,6 +766,8 @@ export default {
                     JitsiMeetConferenceEvents.DESKTOP_SHARING_ENABLED_CHANGED,
                     this.isDesktopSharingEnabled);
 
+                APP.store.dispatch(
+                    setDesktopSharingEnabled(this.isDesktopSharingEnabled));
                 APP.store.dispatch(showDesktopSharingButton());
 
                 this._createRoom(tracks);
@@ -1710,12 +1705,6 @@ export default {
             );
 
             return;
-        } else if (error.name === JitsiTrackErrors.FIREFOX_EXTENSION_NEEDED) {
-            APP.UI.showExtensionRequiredDialog(
-                config.desktopSharingFirefoxExtensionURL
-            );
-
-            return;
         }
 
         // Handling:
@@ -1727,8 +1716,23 @@ export default {
         let titleKey;
 
         if (error.name === JitsiTrackErrors.PERMISSION_DENIED) {
-            descriptionKey = 'dialog.screenSharingPermissionDeniedError';
-            titleKey = 'dialog.screenSharingFailedToInstallTitle';
+
+            // in FF the only option for user is to deny access temporary or
+            // permanently and we only receive permission_denied
+            // we always show some info cause in case of permanently, no info
+            // shown will be bad experience
+            //
+            // TODO: detect interval between requesting permissions and received
+            // error, this way we can detect user interaction which will have
+            // longer delay
+            if (JitsiMeetJS.util.browser.isFirefox()) {
+                descriptionKey
+                    = 'dialog.screenSharingFirefoxPermissionDeniedError';
+                titleKey = 'dialog.screenSharingFirefoxPermissionDeniedTitle';
+            } else {
+                descriptionKey = 'dialog.screenSharingPermissionDeniedError';
+                titleKey = 'dialog.screenSharingFailedToInstallTitle';
+            }
         } else {
             descriptionKey = 'dialog.screenSharingFailedToInstall';
             titleKey = 'dialog.screenSharingFailedToInstallTitle';
@@ -1887,19 +1891,6 @@ export default {
             });
         room.on(JitsiConferenceEvents.DOMINANT_SPEAKER_CHANGED, id => {
             APP.store.dispatch(dominantSpeakerChanged(id));
-
-            if (this.isLocalId(id)) {
-                this.isDominantSpeaker = true;
-                this.setRaisedHand(false);
-            } else {
-                this.isDominantSpeaker = false;
-                const participant = room.getParticipantById(id);
-
-                if (participant) {
-                    APP.UI.setRaisedHandStatus(participant, false);
-                }
-            }
-            APP.UI.markDominantSpeaker(id);
         });
 
         if (!interfaceConfig.filmStripOnly) {
@@ -2013,7 +2004,10 @@ export default {
             (participant, name, oldValue, newValue) => {
                 switch (name) {
                 case 'raisedHand':
-                    APP.UI.setRaisedHandStatus(participant, newValue);
+                    APP.store.dispatch(participantUpdated({
+                        id: participant.getId(),
+                        raisedHand: newValue === 'true'
+                    }));
                     break;
                 case 'remoteControlSessionStatus':
                     APP.UI.setRemoteControlActiveStatus(
@@ -2352,6 +2346,8 @@ export default {
                         }
                     });
                 }
+
+                APP.store.dispatch(setSharedVideoStatus(state));
             });
         room.addCommandListener(
             this.commands.defaults.SHARED_VIDEO,
@@ -2612,30 +2608,6 @@ export default {
 
         APP.store.dispatch(setVideoAvailable(available));
         APP.API.notifyVideoAvailabilityChanged(available);
-    },
-
-    /**
-     * Toggles the local "raised hand" status.
-     */
-    maybeToggleRaisedHand() {
-        this.setRaisedHand(!this.isHandRaised);
-    },
-
-    /**
-     * Sets the local "raised hand" status to a particular value.
-     */
-    setRaisedHand(raisedHand) {
-        if (raisedHand !== this.isHandRaised) {
-            APP.UI.onLocalRaiseHandChanged(raisedHand);
-
-            this.isHandRaised = raisedHand;
-
-            // Advertise the updated status
-            room.setLocalParticipantProperty('raisedHand', raisedHand);
-
-            // Update the view
-            APP.UI.setLocalRaisedHandStatus(raisedHand);
-        }
     },
 
     /**

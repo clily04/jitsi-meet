@@ -44,7 +44,10 @@ var interfaceConfig = {
         'microphone', 'camera', 'desktop', 'fullscreen', 'fodeviceselection', 'hangup',
 
         // extended toolbar
-        'profile', 'contacts', 'info', 'chat', 'recording', 'etherpad', 'sharedvideo', 'settings', 'raisehand', 'videoquality', 'filmstrip' ],
+        'profile', 'contacts', 'info', 'chat', 'recording', 'etherpad',
+        'sharedvideo', 'settings', 'raisehand', 'videoquality', 'filmstrip',
+        'invite', 'feedback', 'stats', 'shortcuts'
+    ],
 
     /**
      * Main Toolbar Buttons
@@ -150,7 +153,19 @@ var interfaceConfig = {
      *
      * @type {boolean}
      */
-    VIDEO_QUALITY_LABEL_DISABLED: false
+    VIDEO_QUALITY_LABEL_DISABLED: false,
+
+    /**
+     * This is a temporary feature flag used to gate access to the toolbox so it
+     * can be developed through smaller changesets and set to false if bad bugs
+     * are found. This feature flag will be removed at some point, as well as
+     * the old toolbox. This new toolbox will be horizontal and the previous
+     * feature of supporting menu button ordering through interfaceConfig will
+     * be removed. Support for configuring which buttons display will remain.
+     *
+     * @type {boolean}
+     */
+    _USE_NEW_TOOLBOX: true
 
     /**
      * Specify custom URL for downloading android mobile app.
